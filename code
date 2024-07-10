@@ -103,3 +103,53 @@ accuracy = accuracy_score(y_test, y_pred)
 print(f"Accuracy: {accuracy}")
 print("Classification Report:")
 print(classification_report(y_test, y_pred)) 
+
+#CNN trial
+
+from sklearn.metrics import classification_report
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv1D, MaxPooling1D, Flatten, Dense, Dropout
+from tensorflow.keras.utils import to_categorical
+
+# Add category column
+pathology_df['category'] = 'pathology'
+physiology_df['category'] = 'physiology'
+
+merged_df = pd.concat([pathology_df, physiology_df], ignore_index=True)
+
+# Separate features 
+X = np.array([ts for ts in merged_df['timeseries'].values])
+y = np.array([1 if category == 'pathology' else 0 for category in merged_df['category']])
+
+print(f"Initial shape of X: {X.shape}")
+
+n_samples, _, n_timesteps = X.shape # Reshape X to samples, timesteps, features
+X = X.reshape(n_samples, n_timesteps, 1)
+
+print(f"Shape of X after reshaping: {X.shape}")
+
+y = to_categorical(y, num_classes=2)
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=42)
+
+model = Sequential([
+    Conv1D(32, kernel_size=3, activation='relu', input_shape=(n_timesteps, 1)),
+    MaxPooling1D(pool_size=2),
+    Conv1D(64, kernel_size=3, activation='relu'),
+    MaxPooling1D(pool_size=2),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dropout(0.5),
+    Dense(2, activation='softmax')
+])
+
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+model.fit(X_train, y_train, epochs=10, batch_size=32, validation_data=(X_test, y_test))
+
+y_pred = model.predict(X_test)
+y_pred_classes = np.argmax(y_pred, axis=1)
+y_test_classes = np.argmax(y_test, axis=1)
+
+print("Classification Report:")
+print(classification_report(y_test_classes, y_pred_classes))
